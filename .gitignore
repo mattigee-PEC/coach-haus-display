@@ -1,0 +1,17 @@
+# Scripts (local ADB tools — not needed for display)
+*.sh
+backup-tablet.sh
+fix-tablets.sh
+update-display.sh
+tablet-backup-*/
+
+# Legacy/draft files
+coach-haus-treadmill-v2.html
+skills-lock.json
+
+# Admin docs
+*.pdf
+*.docx
+
+# macOS
+.DS_Store
