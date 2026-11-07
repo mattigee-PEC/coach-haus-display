@@ -1,0 +1,1475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>COACH HAUS — Treadmill Display</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:ital,wght@0,200;0,300;0,400;0,600;0,700;1,300;1,400&family=Barlow:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+
+/* ═══════════════════════════
+   NIGHT MODE (outside 06:00–23:00)
+═══════════════════════════ */
+#night-cover {
+  display: none;
+  position: fixed; top:0; right:0; bottom:0; left:0;
+  z-index: 9999;
+  background: #000;
+  -webkit-align-items: center; align-items: center;
+  -webkit-justify-content: center; justify-content: center;
+  -webkit-flex-direction: column; flex-direction: column;
+}
+#night-cover.visible {
+  display: -webkit-flex;
+  display: flex;
+}
+#night-cover .night-logo {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 2rem; letter-spacing: .22em;
+  color: rgba(201,168,76,.18);
+  margin-bottom: 18px;
+}
+#night-cover .night-clock {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 3.5rem; letter-spacing: .12em;
+  color: rgba(201,168,76,.12);
+}
+#night-cover .night-msg {
+  font-size: .65rem; letter-spacing: .35em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,.06);
+  margin-top: 10px;
+}
+
+/* ═══════════════════════════
+   RESET + BASE
+   Targets Android 5.1 WebView (Chromium ~37)
+   No CSS custom properties, no Grid, no clamp(), no inset shorthand, no flex gap
+═══════════════════════════ */
+*, *:before, *:after { margin:0; padding:0; -webkit-box-sizing:border-box; box-sizing:border-box; }
+html, body { width:100%; height:100%; overflow:hidden; background:#080808; color:#F4F1EB; cursor:none; }
+body { font-family:'Barlow Condensed', sans-serif; }
+
+/* ═══════════════════════════
+   HUD
+═══════════════════════════ */
+#hud {
+  position: fixed; top:0; left:0; right:0; z-index:200;
+  display: -webkit-flex; display: flex;
+  -webkit-align-items: flex-start; align-items: flex-start;
+  -webkit-justify-content: space-between; justify-content: space-between;
+  padding: 20px 44px 0;
+  background: -webkit-linear-gradient(bottom, transparent, rgba(0,0,0,.75));
+  background: linear-gradient(to bottom, rgba(0,0,0,.75) 0%, transparent 100%);
+  pointer-events: none;
+}
+#hud-logo img {
+  height: 32px;
+  -webkit-filter: invert(1);
+  filter: invert(1);
+  mix-blend-mode: screen;
+  opacity: .9;
+  display: block;
+}
+#hud-logo .fallback {
+  display: none;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.35rem;
+  letter-spacing: .15em;
+  color: #F4F1EB;
+}
+#hud-right { text-align: right; }
+#hud-clock {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 2.2rem;
+  color: #C9A84C;
+  letter-spacing: .1em;
+  line-height: 1;
+}
+#hud-date {
+  font-size: .68rem;
+  font-weight: 300;
+  letter-spacing: .22em;
+  text-transform: uppercase;
+  color: #7A7A7A;
+  margin-top: 3px;
+}
+
+/* ═══════════════════════════
+   PROGRESS + DOTS
+═══════════════════════════ */
+#progress {
+  position: fixed; bottom: 0; left:0;
+  height: 3px; width: 0%;
+  background: #C9A84C;
+  z-index: 300;
+}
+#dots {
+  position: fixed; bottom: 20px; left:50%;
+  -webkit-transform: translateX(-50%);
+  transform: translateX(-50%);
+  display: -webkit-flex; display: flex;
+  z-index: 200;
+}
+.dot {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: rgba(255,255,255,.2);
+  margin: 0 4px;
+  -webkit-transition: background .35s, -webkit-transform .35s;
+  transition: background .35s, transform .35s;
+}
+.dot.active { background: #C9A84C; -webkit-transform: scale(1.5); transform: scale(1.5); }
+
+/* ═══════════════════════════
+   SLIDE BASE
+═══════════════════════════ */
+.slide {
+  position: absolute; top:0; right:0; bottom:0; left:0;
+  opacity: 0;
+  -webkit-transition: opacity .85s cubic-bezier(.4,0,.2,1);
+  transition: opacity .85s cubic-bezier(.4,0,.2,1);
+  pointer-events: none;
+  overflow: hidden;
+}
+.slide.active { opacity: 1; pointer-events: auto; }
+
+/* ═══════════════════════════
+   ENTER ANIMATIONS
+═══════════════════════════ */
+@-webkit-keyframes fadeUp   { from { opacity:0; -webkit-transform:translateY(28px); } to { opacity:1; -webkit-transform:none; } }
+@keyframes fadeUp           { from { opacity:0; transform:translateY(28px); } to { opacity:1; transform:none; } }
+@-webkit-keyframes fadeLeft { from { opacity:0; -webkit-transform:translateX(28px); } to { opacity:1; -webkit-transform:none; } }
+@keyframes fadeLeft         { from { opacity:0; transform:translateX(28px); } to { opacity:1; transform:none; } }
+@-webkit-keyframes scaleFade { from { opacity:0; -webkit-transform:scale(1.04); } to { opacity:1; -webkit-transform:scale(1); } }
+@keyframes scaleFade        { from { opacity:0; transform:scale(1.04); } to { opacity:1; transform:scale(1); } }
+@-webkit-keyframes kenBurns { from { -webkit-transform:scale(1.08); } to { -webkit-transform:scale(1); } }
+@keyframes kenBurns         { from { transform:scale(1.08); } to { transform:scale(1); } }
+@-webkit-keyframes shimmer  { 0%,100% { opacity:.6; } 50% { opacity:1; } }
+@keyframes shimmer          { 0%,100% { opacity:.6; } 50% { opacity:1; } }
+
+.slide.active .au  { -webkit-animation: fadeUp   .7s cubic-bezier(.16,1,.3,1) both; animation: fadeUp   .7s cubic-bezier(.16,1,.3,1) both; }
+.slide.active .al  { -webkit-animation: fadeLeft .7s cubic-bezier(.16,1,.3,1) both; animation: fadeLeft .7s cubic-bezier(.16,1,.3,1) both; }
+.slide.active .sf  { -webkit-animation: scaleFade .9s ease both; animation: scaleFade .9s ease both; }
+
+.d1 { -webkit-animation-delay:.06s!important; animation-delay:.06s!important; }
+.d2 { -webkit-animation-delay:.16s!important; animation-delay:.16s!important; }
+.d3 { -webkit-animation-delay:.26s!important; animation-delay:.26s!important; }
+.d4 { -webkit-animation-delay:.38s!important; animation-delay:.38s!important; }
+.d5 { -webkit-animation-delay:.50s!important; animation-delay:.50s!important; }
+.d6 { -webkit-animation-delay:.62s!important; animation-delay:.62s!important; }
+
+/* ═══════════════════════════
+   OVERLAYS
+═══════════════════════════ */
+#vignette {
+  position:fixed; top:0; right:0; bottom:0; left:0; pointer-events:none; z-index:100;
+  background: -webkit-radial-gradient(center, ellipse 95% 95%, transparent 50%, rgba(0,0,0,.45) 100%);
+  background: radial-gradient(ellipse 95% 95% at 50% 50%, transparent 50%, rgba(0,0,0,.45) 100%);
+}
+#scanlines {
+  position:fixed; top:0; right:0; bottom:0; left:0; pointer-events:none; z-index:100;
+  background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,.03) 2px, rgba(0,0,0,.03) 4px);
+}
+
+/* ════════════════════════════════════════
+   SLIDE 1 — HERO
+════════════════════════════════════════ */
+#s-hero .photo {
+  position:absolute; top:0; right:0; bottom:0; left:0;
+  background: url('Photos/332FDEB4-630B-4DF1-90E9-F2F13B4EB29F.JPG') center 30% / cover no-repeat,
+              linear-gradient(135deg, #1c1008 0%, #2a1c10 45%, #0d0d0d 100%);
+  -webkit-animation: kenBurns 10s ease forwards;
+  animation: kenBurns 10s ease forwards;
+}
+#s-hero .photo:after {
+  content:'';
+  position:absolute; top:0; right:0; bottom:0; left:0;
+  background: linear-gradient(105deg, rgba(0,0,0,.82) 0%, rgba(0,0,0,.55) 45%, rgba(0,0,0,.20) 100%);
+}
+#s-hero .content {
+  position:relative; z-index:1;
+  height:100%; display:-webkit-flex; display:flex;
+  -webkit-flex-direction:column; flex-direction:column;
+  -webkit-justify-content:center; justify-content:center;
+  padding:0 80px;
+}
+#s-hero .eyebrow {
+  font-size:.72rem; font-weight:300; letter-spacing:.5em;
+  text-transform:uppercase; color:#C9A84C; margin-bottom:18px;
+}
+#s-hero .hero-logo {
+  display:block;
+  max-width:260px; height:auto; max-height:52px;
+  -o-object-fit:contain; object-fit:contain;
+  -o-object-position:left center; object-position:left center;
+  margin-bottom:26px;
+  -webkit-filter:invert(1); filter:invert(1);
+  mix-blend-mode:screen;
+  padding:16px 28px;
+  background:rgba(8,8,8,.72);
+  border:1px solid rgba(201,168,76,.22);
+  -webkit-box-sizing:content-box; box-sizing:content-box;
+}
+#s-hero .hero-text-logo {
+  display:block;
+  font-family:'Bebas Neue', sans-serif;
+  font-size:2.8rem; letter-spacing:.18em; color:#F4F1EB;
+  margin-bottom:26px;
+}
+#s-hero h1 {
+  font-family:'Bebas Neue', sans-serif;
+  font-size:5.5rem;
+  line-height:1; letter-spacing:.05em; color:#F4F1EB;
+  max-width:700px;
+}
+#s-hero .rule {
+  width:80px; height:3px;
+  background:#C9A84C;
+  margin:26px 0;
+}
+#s-hero .tagline {
+  font-size:1.05rem; font-weight:300; font-style:italic;
+  color:rgba(255,255,255,.6); letter-spacing:.06em;
+  max-width:480px; line-height:1.6;
+}
+#s-hero .services-strip {
+  position:absolute; bottom:54px; left:80px; right:80px;
+  display:-webkit-flex; display:flex;
+  border-top:1px solid rgba(201,168,76,.25);
+  padding-top:18px;
+}
+#s-hero .svc-chip {
+  -webkit-flex:1; flex:1; text-align:center;
+  font-size:.72rem; letter-spacing:.28em;
+  text-transform:uppercase; color:rgba(255,255,255,.4);
+  font-weight:300;
+  border-right:1px solid rgba(255,255,255,.07);
+  padding:0 12px;
+}
+#s-hero .svc-chip:last-child { border-right:none; }
+
+
+/* ════════════════════════════════════════
+   SLIDE 2 — SERVICES SPLIT
+════════════════════════════════════════ */
+#s-services .left {
+  position:absolute; top:0; left:0; bottom:0; width:42%;
+  background: url('Photos/IMG_4287.PNG') center 20% / cover no-repeat,
+              linear-gradient(160deg, #1c1008 0%, #2a1c10 100%);
+}
+#s-services .left:after {
+  content:''; position:absolute; top:0; right:0; bottom:0; left:0;
+  background:linear-gradient(to right, rgba(0,0,0,.1) 0%, rgba(0,0,0,.55) 100%);
+}
+#s-services .right {
+  position:absolute; top:0; right:0; bottom:0; width:58%;
+  background:#111111;
+  display:-webkit-flex; display:flex;
+  -webkit-flex-direction:column; flex-direction:column;
+  -webkit-justify-content:center; justify-content:center;
+  padding:80px 70px;
+}
+#s-services .eyebrow {
+  font-size:.72rem; letter-spacing:.45em; text-transform:uppercase;
+  color:#C9A84C; font-weight:300; margin-bottom:22px;
+}
+#s-services h2 {
+  font-family:'Bebas Neue', sans-serif;
+  font-size:4rem;
+  line-height:1; letter-spacing:.04em;
+  color:#F4F1EB; margin-bottom:36px;
+}
+.svc-list-item {
+  display:-webkit-flex; display:flex;
+  -webkit-align-items:flex-start; align-items:flex-start;
+  padding:16px 0;
+  border-bottom:1px solid rgba(255,255,255,.06);
+}
+.svc-list-item:last-child { border-bottom:none; }
+.svc-num {
+  font-family:'Bebas Neue', sans-serif;
+  font-size:1rem; color:#C9A84C;
+  opacity:1; min-width:32px; line-height:1.1;
+  letter-spacing:.1em;
+  padding-top:3px;
+  margin-right:18px;
+}
+.svc-body { -webkit-flex:1; flex:1; }
+.svc-name {
+  font-family:'Bebas Neue', sans-serif;
+  font-size:1.5rem; letter-spacing:.04em;
+  color:#F4F1EB; display:block; margin-bottom:4px;
+}
+.svc-desc {
+  font-family:'Barlow', sans-serif;
+  font-size:.82rem; font-weight:300;
+  color:rgba(255,255,255,.45); line-height:1.55;
+}
+#s-services .insurance-badge {
+  margin-top:28px; display:-webkit-inline-flex; display:inline-flex;
+  -webkit-align-items:center; align-items:center;
+  border:1px solid rgba(201,168,76,.4);
+  padding:9px 20px;
+  font-size:.72rem; letter-spacing:.25em; text-transform:uppercase;
+  color:#C9A84C; font-weight:300;
+}
+
+
+/* ════════════════════════════════════════
+   SERVICE DETAIL SLIDES (3, 7, 9)
+════════════════════════════════════════ */
+.slide-svc-detail {
+  background:#080808;
+  display:-webkit-flex; display:flex;
+}
+.slide-svc-detail .illus-panel {
+  width:44%; position:relative; overflow:hidden;
+  display:-webkit-flex; display:flex;
+  -webkit-align-items:center; align-items:center;
+  -webkit-justify-content:center; justify-content:center;
+  background: linear-gradient(160deg, #1a1208 0%, #0d0d0d 100%);
+}
+.slide-svc-detail .illus-bg {
+  position:absolute; top:0; right:0; bottom:0; left:0;
+  background-size:cover; background-position:center;
+  opacity:.18;
+  -webkit-filter:saturate(0); filter:saturate(0);
+}
+.slide-svc-detail .illus-overlay {
+  position:absolute; top:0; right:0; bottom:0; left:0;
+  background:linear-gradient(to right, transparent 60%, #080808 100%);
+}
+.slide-svc-detail .illus-img {
+  position:relative; z-index:1;
+  width:72%; max-width:340px;
+  -webkit-filter:drop-shadow(0 0 60px rgba(201,168,76,.12));
+  filter:drop-shadow(0 0 60px rgba(201,168,76,.12));
+}
+.slide-svc-detail .text-panel {
+  -webkit-flex:1; flex:1;
+  display:-webkit-flex; display:flex;
+  -webkit-flex-direction:column; flex-direction:column;
+  -webkit-justify-content:center; justify-content:center;
+  padding:80px 72px 80px 48px;
+  position:relative;
+}
+.slide-svc-detail .accent-bar {
+  width:40px; height:2px;
+  background:#C9A84C;
+  margin-bottom:22px;
+}
+.slide-svc-detail .eyebrow {
+  font-size:.7rem; letter-spacing:.45em; text-transform:uppercase;
+  color:#C9A84C; font-weight:300; margin-bottom:16px;
+}
+.slide-svc-detail h2 {
+  font-family:'Bebas Neue', sans-serif;
+  font-size:4.5rem;
+  line-height:.95; letter-spacing:.04em;
+  color:#F4F1EB; margin-bottom:24px;
+}
+.slide-svc-detail .desc {
+  font-family:'Barlow', sans-serif; font-size:1rem;
+  font-weight:300; line-height:1.7;
+  color:rgba(255,255,255,.55); max-width:440px; margin-bottom:28px;
+}
+.slide-svc-detail .tag {
+  display:-webkit-inline-flex; display:inline-flex;
+  -webkit-align-items:center; align-items:center;
+  font-size:.72rem; letter-spacing:.3em; text-transform:uppercase;
+  color:#C9A84C; font-weight:600;
+}
+.slide-svc-detail .tag:before {
+  content:''; width:28px; height:1px; background:#C9A84C;
+  margin-right:10px;
+}
+.slide-svc-detail .big-stat {
+  position:absolute; right:72px; bottom:60px;
+  font-family:'Bebas Neue', sans-serif;
+  font-size:8rem;
+  color:rgba(255,255,255,.04); line-height:1;
+  pointer-events:none;
+}
+
+
+/* ════════════════════════════════════════
+   MOTIVATIONAL SLIDES
+════════════════════════════════════════ */
+.slide-motive {
+  background:#080808;
+  display:-webkit-flex; display:flex;
+  -webkit-align-items:center; align-items:center;
+  -webkit-justify-content:center; justify-content:center;
+  text-align:center; position:relative;
+}
+.slide-motive .motive-photo {
+  position:absolute; top:0; right:0; bottom:0; left:0;
+  background: url('Photos/332FDEB4-630B-4DF1-90E9-F2F13B4EB29F.JPG') center 55% / cover no-repeat,
+              linear-gradient(135deg, #0d0d0d 0%, #1a1208 100%);
+  opacity:.08;
+}
+#s-motive-1 .motive-photo {
+  background: url('Photos/IMG_4286.PNG') center 40% / cover no-repeat,
+              linear-gradient(135deg, #0d0d0d 0%, #1a1208 100%);
+}
+#s-motive-2 .motive-photo {
+  background: url('Photos/IMG_4285.PNG') center 40% / cover no-repeat,
+              linear-gradient(135deg, #0d0d0d 0%, #1a1208 100%);
+}
+#s-motive-3 .motive-photo {
+  background: url('Photos/IMG_5909.PNG') center 40% / cover no-repeat,
+              linear-gradient(135deg, #0d0d0d 0%, #1a1208 100%);
+}
+.slide-motive .motive-num {
+  position:absolute;
+  font-family:'Bebas Neue', sans-serif; font-size:38vw;
+  color:rgba(255,255,255,.018); line-height:1;
+  top:50%; left:50%;
+  -webkit-transform:translate(-50%,-50%); transform:translate(-50%,-50%);
+  pointer-events:none; -webkit-user-select:none; user-select:none;
+}
+.slide-motive .motive-content { position:relative; z-index:1; max-width:78vw; }
+.slide-motive .qm {
+  font-family:'Bebas Neue', sans-serif; font-size:7rem;
+  color:#C9A84C; opacity:.25; line-height:.5;
+  display:block; margin-bottom:16px;
+}
+.slide-motive .quote {
+  font-family:'Bebas Neue', sans-serif;
+  font-size:4.5rem;
+  line-height:1.05; letter-spacing:.04em; color:#F4F1EB;
+}
+.slide-motive .quote em { color:#C9A84C; font-style:normal; }
+.slide-motive .attrib {
+  margin-top:26px; font-size:.75rem; letter-spacing:.35em;
+  text-transform:uppercase; color:#7A7A7A;
+}
+
+
+/* ════════════════════════════════════════
+   SCHEDULE SLIDES
+════════════════════════════════════════ */
+.slide-schedule {
+  background:#080808;
+  display:-webkit-flex; display:flex;
+  -webkit-flex-direction:column; flex-direction:column;
+  padding:0;
+}
+.sched-header {
+  display:-webkit-flex; display:flex;
+  -webkit-align-items:center; align-items:center;
+  -webkit-justify-content:space-between; justify-content:space-between;
+  padding:72px 44px 18px;
+  border-bottom:1px solid rgba(201,168,76,.2);
+  background:rgba(0,0,0,.6);
+  -webkit-flex-shrink:0; flex-shrink:0;
+}
+.sched-header-left {
+  display:-webkit-flex; display:flex;
+  -webkit-align-items:baseline; align-items:baseline;
+}
+.sched-week-label {
+  font-family:'Bebas Neue', sans-serif;
+  font-size:2.2rem; letter-spacing:.08em; color:#F4F1EB;
+  margin-right:18px;
+}
+.sched-date-range {
+  font-size:.78rem; letter-spacing:.25em; font-weight:300;
+  text-transform:uppercase; color:#7A7A7A;
+}
+.sched-header-logo img {
+  height:24px;
+  -webkit-filter:brightness(0) invert(1); filter:brightness(0) invert(1);
+  opacity:.5;
+}
+.sched-live-badge {
+  display:-webkit-flex; display:flex;
+  -webkit-align-items:center; align-items:center;
+  font-size:.65rem; letter-spacing:.25em; text-transform:uppercase;
+  color:#C9A84C; font-weight:600;
+}
+.sched-live-dot {
+  width:6px; height:6px; border-radius:50%;
+  background:#C9A84C;
+  margin-right:7px;
+  -webkit-animation: shimmer 2s ease-in-out infinite;
+  animation: shimmer 2s ease-in-out infinite;
+}
+
+/* day columns — flexbox replaces CSS Grid */
+.sched-grid {
+  display:-webkit-flex; display:flex;
+  -webkit-flex:1; flex:1;
+  overflow:hidden;
+  min-height:0;
+}
+.sched-col {
+  -webkit-flex:1; flex:1;
+  display:-webkit-flex; display:flex;
+  -webkit-flex-direction:column; flex-direction:column;
+  border-right:1px solid rgba(255,255,255,.05);
+  min-height:0;
+}
+.sched-col:last-child { border-right:none; }
+
+.sched-day-header {
+  padding:12px 14px 10px;
+  border-bottom:1px solid rgba(255,255,255,.05);
+  background:rgba(255,255,255,.02);
+  -webkit-flex-shrink:0; flex-shrink:0;
+}
+.sched-day-name {
+  font-family:'Bebas Neue', sans-serif;
+  font-size:1.1rem; letter-spacing:.08em; color:#BBBBBB;
+  display:block;
+}
+.sched-day-date {
+  font-size:.65rem; letter-spacing:.15em; color:#7A7A7A;
+  font-weight:300;
+}
+.sched-day-header.today { border-bottom:2px solid #C9A84C; }
+.sched-day-header.today .sched-day-name { color:#C9A84C; }
+
+.sched-classes {
+  -webkit-flex:1; flex:1;
+  padding:10px;
+  display:-webkit-flex; display:flex;
+  -webkit-flex-direction:column; flex-direction:column;
+  overflow:hidden;
+}
+
+.class-card {
+  background: transparent;
+  border: 1px solid rgba(255,255,255,.07);
+  border-top: 2px solid #9A7933;
+  padding: 8px 10px;
+  margin-bottom: 7px;
+  -webkit-flex-shrink:0; flex-shrink:0;
+}
+.class-card:last-child { margin-bottom:0; }
+.class-card.type-group { border-top-color: #3A7BD5; }
+.class-card.type-yoga  { border-top-color: #7B5EA7; }
+.class-card.type-rehab { border-top-color: #2E7D52; }
+.class-card.type-nutri { border-top-color: #D4832A; }
+
+.class-time {
+  font-family:'Bebas Neue', sans-serif;
+  font-size:.95rem; letter-spacing:.06em;
+  color:#E8C97A; display:block; line-height:1;
+  margin-bottom:3px;
+}
+.class-card.type-group .class-time { color:#7EB3FF; }
+.class-card.type-yoga  .class-time { color:#B89FDB; }
+.class-card.type-rehab .class-time { color:#6DC99B; }
+.class-card.type-nutri .class-time { color:#F0B060; }
+
+.class-name {
+  font-size:.78rem; font-weight:600; letter-spacing:.04em;
+  color:#F4F1EB; display:block; line-height:1.2; margin-bottom:2px;
+}
+.class-instructor {
+  font-size:.65rem; font-weight:300; letter-spacing:.08em;
+  color:#7A7A7A; display:block;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.sched-empty {
+  -webkit-flex:1; flex:1;
+  display:-webkit-flex; display:flex;
+  -webkit-align-items:center; align-items:center;
+  -webkit-justify-content:center; justify-content:center;
+  color:rgba(255,255,255,.1);
+  font-size:.7rem; letter-spacing:.2em; text-transform:uppercase;
+}
+.sched-legend {
+  display:-webkit-flex; display:flex;
+  -webkit-align-items:center; align-items:center;
+  padding:10px 44px;
+  border-top:1px solid rgba(255,255,255,.05);
+  background:rgba(0,0,0,.4);
+  -webkit-flex-shrink:0; flex-shrink:0;
+  overflow:hidden;
+}
+.legend-item {
+  display:-webkit-flex; display:flex;
+  -webkit-align-items:center; align-items:center;
+  font-size:.62rem; letter-spacing:.2em;
+  text-transform:uppercase; color:#7A7A7A; font-weight:300;
+  margin-right:20px;
+  white-space:nowrap;
+}
+.legend-dot {
+  width:8px; height:8px; border-radius:1px;
+  -webkit-flex-shrink:0; flex-shrink:0;
+  margin-right:6px;
+}
+.sched-note {
+  margin-left:auto; font-size:.6rem; letter-spacing:.15em;
+  color:rgba(255,255,255,.15); text-transform:uppercase; font-style:italic;
+  white-space:nowrap;
+}
+
+
+/* ════════════════════════════════════════
+   INSURANCE SLIDE
+════════════════════════════════════════ */
+#s-insurance {
+  background:#C9A84C;
+  display:-webkit-flex; display:flex;
+  -webkit-align-items:center; align-items:center;
+  -webkit-justify-content:center; justify-content:center;
+  -webkit-flex-direction:column; flex-direction:column;
+  text-align:center;
+  position:relative;
+}
+#s-insurance .ins-pattern {
+  position:absolute; top:0; right:0; bottom:0; left:0;
+  background-image:
+    repeating-linear-gradient(45deg, rgba(0,0,0,.04) 0, rgba(0,0,0,.04) 1px, transparent 1px, transparent 8px),
+    repeating-linear-gradient(-45deg, rgba(0,0,0,.04) 0, rgba(0,0,0,.04) 1px, transparent 1px, transparent 8px);
+}
+#s-insurance .content { position:relative; z-index:1; }
+#s-insurance .ins-icon { font-size:3rem; margin-bottom:12px; }
+#s-insurance h2 {
+  font-family:'Bebas Neue', sans-serif;
+  font-size:5rem; color:#080808;
+  line-height:1; letter-spacing:.04em; margin-bottom:16px;
+}
+#s-insurance .ins-sub {
+  font-size:1.1rem; letter-spacing:.2em;
+  color:rgba(0,0,0,.5); text-transform:uppercase; font-weight:600;
+  margin-bottom:28px;
+}
+#s-insurance .chips {
+  display:-webkit-flex; display:flex;
+  -webkit-justify-content:center; justify-content:center;
+  -webkit-flex-wrap:wrap; flex-wrap:wrap;
+}
+#s-insurance .chip {
+  border:1.5px solid rgba(0,0,0,.2); padding:9px 22px;
+  font-size:.78rem; letter-spacing:.2em; text-transform:uppercase;
+  font-weight:600; color:rgba(0,0,0,.6);
+  margin:4px 8px;
+}
+
+
+/* ════════════════════════════════════════
+   BOOK NOW SLIDE
+════════════════════════════════════════ */
+#s-book {
+  background:#080808;
+  display:-webkit-flex; display:flex;
+  -webkit-align-items:center; align-items:center;
+  -webkit-justify-content:center; justify-content:center;
+  -webkit-flex-direction:column; flex-direction:column;
+  text-align:center; position:relative;
+}
+#s-book .book-photo {
+  position:absolute; top:0; right:0; bottom:0; left:0;
+  background: url('Photos/332FDEB4-630B-4DF1-90E9-F2F13B4EB29F.JPG') center 40% / cover no-repeat,
+              linear-gradient(135deg, #0d0d0d 0%, #1a1208 100%);
+  opacity:.12;
+}
+#s-book .book-photo:after {
+  content:''; position:absolute; top:0; right:0; bottom:0; left:0;
+  background:-webkit-radial-gradient(center, ellipse 80% 80%, transparent 30%, rgba(0,0,0,.7) 100%);
+  background:radial-gradient(ellipse 80% 80% at 50% 50%, transparent 30%, rgba(0,0,0,.7) 100%);
+}
+#s-book .content { position:relative; z-index:1; }
+#s-book .book-label {
+  font-size:.75rem; letter-spacing:.55em; color:#C9A84C;
+  text-transform:uppercase; margin-bottom:16px; font-weight:300;
+}
+#s-book h2 {
+  font-family:'Bebas Neue', sans-serif;
+  font-size:7rem;
+  line-height:1; letter-spacing:.06em; color:#F4F1EB; margin-bottom:10px;
+}
+#s-book .book-url {
+  font-size:1.1rem; letter-spacing:.15em;
+  color:rgba(255,255,255,.35); margin-bottom:32px;
+}
+#s-book .book-cta {
+  display:inline-block;
+  border:2px solid #C9A84C; padding:16px 56px;
+  font-family:'Bebas Neue', sans-serif; font-size:1.5rem;
+  letter-spacing:.2em; color:#C9A84C; margin-bottom:24px;
+}
+#s-book .book-contact {
+  font-size:.88rem; letter-spacing:.15em; color:rgba(255,255,255,.4);
+  text-transform:uppercase;
+}
+#s-book .book-phone {
+  font-family:'Bebas Neue', sans-serif;
+  font-size:1.5rem; letter-spacing:.1em; color:rgba(255,255,255,.55);
+  margin-bottom:8px;
+}
+#s-book .book-email {
+  font-size:.8rem; letter-spacing:.2em; color:rgba(255,255,255,.25);
+  text-transform:uppercase;
+}
+#s-book .qr-wrap {
+  display:-webkit-inline-flex; display:inline-flex;
+  -webkit-flex-direction:column; flex-direction:column;
+  -webkit-align-items:center; align-items:center;
+  margin-bottom:20px;
+}
+#s-book .qr-wrap canvas,
+#s-book .qr-wrap img { display:block; }
+#s-book .qr-label {
+  font-size:.65rem; letter-spacing:.3em; text-transform:uppercase;
+  color:rgba(255,255,255,.3); margin-top:12px;
+  font-family:'Barlow Condensed', sans-serif;
+}
+
+
+/* ════════════════════════════════════════
+   HOURS SLIDE
+════════════════════════════════════════ */
+#s-hours {
+  background:#181818;
+  display:-webkit-flex; display:flex;
+}
+#s-hours .hrs-left {
+  -webkit-flex:1; flex:1;
+  display:-webkit-flex; display:flex;
+  -webkit-flex-direction:column; flex-direction:column;
+  -webkit-justify-content:center; justify-content:center;
+  padding:80px 60px 80px 80px;
+}
+#s-hours .eyebrow {
+  font-size:.72rem; letter-spacing:.45em; text-transform:uppercase;
+  color:#C9A84C; font-weight:300; margin-bottom:14px;
+}
+#s-hours h2 {
+  font-family:'Bebas Neue', sans-serif;
+  font-size:5rem; line-height:1;
+  letter-spacing:.04em; color:#F4F1EB; margin-bottom:36px;
+}
+.hrs-row {
+  display:-webkit-flex; display:flex;
+  -webkit-align-items:center; align-items:center;
+  -webkit-justify-content:space-between; justify-content:space-between;
+  padding:15px 0; border-bottom:1px solid rgba(255,255,255,.06);
+}
+.hrs-row:last-child { border-bottom:none; }
+.hrs-day {
+  font-size:.9rem; letter-spacing:.2em; text-transform:uppercase;
+  color:rgba(255,255,255,.45); font-weight:300; min-width:160px;
+  margin-right:32px;
+}
+.hrs-time {
+  font-family:'Bebas Neue', sans-serif; font-size:1.7rem;
+  color:#F4F1EB; letter-spacing:.08em;
+}
+.hrs-time.closed { color:#7A7A7A; font-size:1.3rem; }
+
+#s-hours .hrs-right {
+  width:40%;
+  display:-webkit-flex; display:flex;
+  -webkit-flex-direction:column; flex-direction:column;
+  -webkit-justify-content:center; justify-content:center;
+  -webkit-align-items:flex-start; align-items:flex-start;
+  padding:80px;
+  border-left:1px solid rgba(255,255,255,.05);
+}
+.contact-block {
+  display:-webkit-flex; display:flex;
+  -webkit-flex-direction:column; flex-direction:column;
+  margin-bottom:26px;
+}
+.contact-block:last-child { margin-bottom:0; }
+.cb-label {
+  font-size:.66rem; letter-spacing:.45em; text-transform:uppercase;
+  color:#C9A84C; font-weight:300; margin-bottom:5px;
+}
+.cb-value {
+  font-size:1rem; letter-spacing:.05em;
+  color:rgba(255,255,255,.65); font-weight:300; line-height:1.5;
+}
+#s-hours .hrs-logo img {
+  height:26px;
+  -webkit-filter:brightness(0) invert(1); filter:brightness(0) invert(1);
+  opacity:.35;
+}
+
+
+/* ════════════════════════════════════════
+   TEAM SLIDE — flexbox replaces CSS Grid
+════════════════════════════════════════ */
+#s-team {
+  background:#111111;
+  display:-webkit-flex; display:flex;
+  -webkit-flex-direction:column; flex-direction:column;
+}
+#s-team .team-header {
+  padding:56px 80px 28px;
+  display:-webkit-flex; display:flex;
+  -webkit-align-items:flex-end; align-items:flex-end;
+  -webkit-justify-content:space-between; justify-content:space-between;
+  -webkit-flex-shrink:0; flex-shrink:0;
+}
+#s-team .team-header h2 {
+  font-family:'Bebas Neue', sans-serif;
+  font-size:3.8rem;
+  letter-spacing:.05em; color:#F4F1EB;
+}
+#s-team .team-header .eyebrow {
+  font-size:.72rem; letter-spacing:.45em; text-transform:uppercase;
+  color:#C9A84C; font-weight:300; margin-bottom:8px;
+}
+#s-team .team-grid {
+  display:-webkit-flex; display:flex;
+  -webkit-flex:1; flex:1;
+  border-top:1px solid rgba(255,255,255,.06);
+  min-height:0;
+}
+.team-member {
+  -webkit-flex:1; flex:1;
+  display:-webkit-flex; display:flex;
+  -webkit-flex-direction:column; flex-direction:column;
+  border-right:1px solid rgba(255,255,255,.04);
+  position:relative; overflow:hidden; min-height:0;
+}
+.team-member:last-child { border-right:none; }
+
+.tm-photo {
+  position:absolute; top:0; right:0; bottom:0; left:0;
+  background-size:cover; background-position:center top;
+}
+.tm-photo:after {
+  content:''; position:absolute; top:0; right:0; bottom:0; left:0;
+  background:linear-gradient(to bottom, transparent 20%, rgba(8,8,8,.88) 72%, #080808 100%);
+}
+.tm-initial {
+  position:absolute; top:50%; left:50%;
+  -webkit-transform:translate(-50%,-60%); transform:translate(-50%,-60%);
+  font-family:'Bebas Neue', sans-serif;
+  font-size:4rem; color:rgba(201,168,76,.1);
+  line-height:1; pointer-events:none;
+  -webkit-user-select:none; user-select:none; z-index:1;
+}
+.tm-info {
+  position:relative; z-index:2;
+  margin-top:auto; padding:20px 16px;
+}
+.tm-name {
+  font-family:'Bebas Neue', sans-serif;
+  font-size:1.1rem; letter-spacing:.04em;
+  color:#F4F1EB; display:block; margin-bottom:4px;
+}
+.tm-role {
+  font-size:.62rem; letter-spacing:.1em; font-weight:300;
+  color:#7A7A7A; line-height:1.4;
+  text-transform:uppercase;
+}
+
+</style>
+</head>
+<body>
+
+<!-- ═══ HUD ═══ -->
+<div id="hud">
+  <div id="hud-logo">
+    <img src="Photos/coach-haus-logo.png" alt="Coach Haus"
+      onerror="this.style.display='none';document.querySelector('#hud-logo .fallback').style.display='block'">
+    <span class="fallback">COACH HAUS</span>
+  </div>
+  <div id="hud-right">
+    <div id="hud-clock">12:00 PM</div>
+    <div id="hud-date">Saturday — Prince Edward County</div>
+  </div>
+</div>
+
+<!-- ─── 1. HERO ─── -->
+<div class="slide active" id="s-hero">
+  <div class="photo"></div>
+  <div class="content">
+    <span class="eyebrow au d1">Prince Edward County, Ontario</span>
+    <img class="hero-logo au d2"
+      src="Photos/coach-haus-logo.png"
+      alt="Coach Haus"
+      onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
+    <span class="hero-text-logo au d2" style="display:none">COACH HAUS</span>
+    <h1 class="au d3">Health &amp;<br>Wellness<br>Professionals</h1>
+    <div class="rule au d4"></div>
+    <p class="tagline au d5">Personal Training · Group Classes<br>Nutrition · Rehabilitation · Active Care</p>
+  </div>
+  <div class="services-strip au d6">
+    <span class="svc-chip">Personal Training</span>
+    <span class="svc-chip">Group Fitness</span>
+    <span class="svc-chip">Nutrition Counselling</span>
+    <span class="svc-chip">Rehabilitation</span>
+    <span class="svc-chip">Direct Billing</span>
+  </div>
+</div>
+
+<!-- ─── 2. SERVICES SPLIT ─── -->
+<div class="slide" id="s-services">
+  <div class="left"></div>
+  <div class="right">
+    <span class="eyebrow au d1">What We Offer</span>
+    <h2 class="au d2">Everything<br>You Need<br>to Thrive.</h2>
+    <div class="svc-list-item au d3">
+      <span class="svc-num">01</span>
+      <div class="svc-body">
+        <span class="svc-name">Premium Personal Training</span>
+        <span class="svc-desc">One-on-one 45 or 60-min sessions — strength, conditioning &amp; mobility, fully personalized.</span>
+      </div>
+    </div>
+    <div class="svc-list-item au d4">
+      <span class="svc-num">02</span>
+      <div class="svc-body">
+        <span class="svc-name">Small Group &amp; Classes</span>
+        <span class="svc-desc">Strength, yoga, stretching, foundational fitness &amp; monthly pop-up classes.</span>
+      </div>
+    </div>
+    <div class="svc-list-item au d5">
+      <span class="svc-num">03</span>
+      <div class="svc-body">
+        <span class="svc-name">Nutrition Counselling</span>
+        <span class="svc-desc">Custom meal plans &amp; lifestyle programs with a Certified Holistic Nutritionist.</span>
+      </div>
+    </div>
+    <div class="svc-list-item au d6">
+      <span class="svc-num">04</span>
+      <div class="svc-body">
+        <span class="svc-name">Active Care &amp; Rehabilitation</span>
+        <span class="svc-desc">Return to pain-free movement through targeted active rehabilitation sessions.</span>
+      </div>
+    </div>
+    <div class="insurance-badge au" style="-webkit-animation-delay:.72s;animation-delay:.72s">
+      &#x1F6E1; Most services covered by health insurance &nbsp;&middot;&nbsp; Direct billing available
+    </div>
+  </div>
+</div>
+
+<!-- ─── 3. PERSONAL TRAINING ─── -->
+<div class="slide slide-svc-detail" id="s-pt">
+  <div class="illus-panel">
+    <div class="illus-bg" style="background-image:url('Photos/IMG_4286.PNG')"></div>
+    <div class="illus-overlay"></div>
+    <img class="illus-img au d2 sf" src="Photos/IMG_4286.PNG" alt="Personal Training">
+  </div>
+  <div class="text-panel">
+    <div class="accent-bar"></div>
+    <span class="eyebrow au d1">Our Services</span>
+    <h2 class="au d2">Premium<br>Personal<br>Training</h2>
+    <p class="desc au d3">One-on-one sessions with an experienced trainer. 45 or 60 minutes of strength training, conditioning &amp; mobility — personalized entirely to your unique health and fitness goals.</p>
+    <span class="tag au d4">All Fitness Levels Welcome</span>
+    <span class="big-stat">1:1</span>
+  </div>
+</div>
+
+<!-- ─── 4. MOTIVATION 1 ─── -->
+<div class="slide slide-motive" id="s-motive-1">
+  <div class="motive-photo"></div>
+  <div class="motive-num">01</div>
+  <div class="motive-content">
+    <span class="qm au d1">"</span>
+    <p class="quote au d2">The only bad workout<br>is the one that<br><em>didn't happen.</em></p>
+    <p class="attrib au d3">Coach Haus Philosophy</p>
+  </div>
+</div>
+
+<!-- ─── 5. SCHEDULE: THIS WEEK ─── -->
+<div class="slide slide-schedule" id="s-schedule-this">
+  <div class="sched-header au d1">
+    <div class="sched-header-left">
+      <span class="sched-week-label">This Week</span>
+      <span class="sched-date-range" id="this-week-range"></span>
+    </div>
+    <div style="display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center;">
+      <div class="sched-live-badge" style="margin-right:24px">
+        <div class="sched-live-dot"></div>
+        Live Schedule
+      </div>
+      <div class="sched-header-logo">
+        <img src="Photos/coach-haus-logo.png" alt=""
+          onerror="this.style.visibility='hidden'">
+      </div>
+    </div>
+  </div>
+  <div class="sched-grid au d2" id="this-week-grid"></div>
+  <div class="sched-legend au d3">
+    <div class="legend-item"><div class="legend-dot" style="background:#9A7933"></div>Personal Training</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#3A7BD5"></div>Group Fitness</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#7B5EA7"></div>Yoga &amp; Pilates</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#2E7D52"></div>Rehabilitation</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#D4832A"></div>Nutrition</div>
+    <span class="sched-note">coach-haus.com &middot; Book at the front desk or online</span>
+  </div>
+</div>
+
+<!-- ─── 6. SCHEDULE: NEXT WEEK ─── -->
+<div class="slide slide-schedule" id="s-schedule-next">
+  <div class="sched-header au d1">
+    <div class="sched-header-left">
+      <span class="sched-week-label">Coming Up</span>
+      <span class="sched-date-range" id="next-week-range"></span>
+    </div>
+    <div style="display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center;">
+      <div class="sched-live-badge" style="margin-right:24px">
+        <div class="sched-live-dot"></div>
+        Live Schedule
+      </div>
+      <div class="sched-header-logo">
+        <img src="Photos/coach-haus-logo.png" alt=""
+          onerror="this.style.visibility='hidden'">
+      </div>
+    </div>
+  </div>
+  <div class="sched-grid au d2" id="next-week-grid"></div>
+  <div class="sched-legend au d3">
+    <div class="legend-item"><div class="legend-dot" style="background:#9A7933"></div>Personal Training</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#3A7BD5"></div>Group Fitness</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#7B5EA7"></div>Yoga &amp; Pilates</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#2E7D52"></div>Rehabilitation</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#D4832A"></div>Nutrition</div>
+    <span class="sched-note">coach-haus.com &middot; Book at the front desk or online</span>
+  </div>
+</div>
+
+<!-- ─── 7. GROUP FITNESS ─── -->
+<div class="slide slide-svc-detail" id="s-group">
+  <div class="illus-panel">
+    <div class="illus-bg" style="background-image:url('Photos/IMG_5909.PNG')"></div>
+    <div class="illus-overlay"></div>
+    <img class="illus-img au d2 sf" src="Photos/IMG_5909.PNG" alt="Group Fitness">
+  </div>
+  <div class="text-panel">
+    <div class="accent-bar"></div>
+    <span class="eyebrow au d1">Our Services</span>
+    <h2 class="au d2">Group<br>Classes &amp;<br>Small Group</h2>
+    <p class="desc au d3">The energy of a group, the care of a coach. From strength-based programming to stretching, yoga, foundational fitness and monthly pop-up classes — all fitness levels welcome.</p>
+    <span class="tag au d4">All Fitness Levels Welcome</span>
+    <span class="big-stat">SG</span>
+  </div>
+</div>
+
+<!-- ─── 8. MOTIVATION 2 ─── -->
+<div class="slide slide-motive" id="s-motive-2">
+  <div class="motive-photo"></div>
+  <div class="motive-num">02</div>
+  <div class="motive-content">
+    <span class="qm au d1">"</span>
+    <p class="quote au d2">Your body can stand<br>almost anything.<br>It's your <em>mind</em><br>you have to <em>convince.</em></p>
+    <p class="attrib au d3">Keep Pushing</p>
+  </div>
+</div>
+
+<!-- ─── 9. NUTRITION & REHAB ─── -->
+<div class="slide slide-svc-detail" id="s-nutri">
+  <div class="illus-panel">
+    <div class="illus-bg" style="background-image:url('Photos/IMG_4285.PNG')"></div>
+    <div class="illus-overlay"></div>
+    <img class="illus-img au d2 sf" src="Photos/IMG_4285.PNG" alt="Nutrition &amp; Rehab">
+  </div>
+  <div class="text-panel">
+    <div class="accent-bar"></div>
+    <span class="eyebrow au d1">Our Services</span>
+    <h2 class="au d2">Nutrition<br>Counselling<br>&amp; Rehab</h2>
+    <p class="desc au d3">One-on-one coaching with a Certified Holistic Nutritionist. Custom meal plans, detox protocols, and lifestyle programs. Paired with active rehabilitation to keep you moving pain-free.</p>
+    <span class="tag au d4">Certified Holistic Nutritionist</span>
+    <span class="big-stat">CHN</span>
+  </div>
+</div>
+
+<!-- ─── 10. INSURANCE ─── -->
+<div class="slide" id="s-insurance">
+  <div class="ins-pattern"></div>
+  <div class="content">
+    <div class="ins-icon au d1">&#x1F6E1;</div>
+    <h2 class="au d2">Most Services<br>Covered by<br>Health Insurance</h2>
+    <p class="ins-sub au d3">Direct Billing Available</p>
+    <div class="chips au d4">
+      <span class="chip">Personal Training</span>
+      <span class="chip">Rehabilitation</span>
+      <span class="chip">Nutrition Counselling</span>
+    </div>
+  </div>
+</div>
+
+<!-- ─── 11. TEAM ─── -->
+<div class="slide" id="s-team">
+  <div class="team-header">
+    <div>
+      <div class="eyebrow au d1">At the ClaraMount Club</div>
+      <h2 class="au d2">Your Coaching<br>Team</h2>
+    </div>
+  </div>
+  <div class="team-grid au d3">
+    <div class="team-member">
+      <div class="tm-photo"></div>
+      <div class="tm-initial">A</div>
+      <div class="tm-info">
+        <span class="tm-name">Adam Reynolds</span>
+        <span class="tm-role">Chiropractor / Personal Trainer</span>
+      </div>
+    </div>
+    <div class="team-member">
+      <div class="tm-photo" style="background-image:url('Photos/DSC06457.JPG')"></div>
+      <div class="tm-initial">D</div>
+      <div class="tm-info">
+        <span class="tm-name">Danielle Reynolds</span>
+        <span class="tm-role">PT / Holistic Nutritionist / Pre &amp; Post Natal</span>
+      </div>
+    </div>
+    <div class="team-member">
+      <div class="tm-photo" style="background-image:url('Photos/DSC06409.JPG')"></div>
+      <div class="tm-initial">B</div>
+      <div class="tm-info">
+        <span class="tm-name">Bella Sims</span>
+        <span class="tm-role">PT / Senior Fitness / Injury Rehab</span>
+      </div>
+    </div>
+    <div class="team-member">
+      <div class="tm-photo" style="background-image:url('Photos/DSC06305.JPG')"></div>
+      <div class="tm-initial">M</div>
+      <div class="tm-info">
+        <span class="tm-name">Megan Philip</span>
+        <span class="tm-role">Group Fitness Instructor</span>
+      </div>
+    </div>
+    <div class="team-member">
+      <div class="tm-photo"></div>
+      <div class="tm-initial">K</div>
+      <div class="tm-info">
+        <span class="tm-name">Kaylyn Gelata</span>
+        <span class="tm-role">Yoga &amp; Pilates Instructor</span>
+      </div>
+    </div>
+    <div class="team-member">
+      <div class="tm-photo" style="background-image:url('Photos/DSC06238.JPG')"></div>
+      <div class="tm-initial">M</div>
+      <div class="tm-info">
+        <span class="tm-name">Melody Addison</span>
+        <span class="tm-role">Group Fitness Instructor</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── 12. MOTIVATION 3 ─── -->
+<div class="slide slide-motive" id="s-motive-3">
+  <div class="motive-photo"></div>
+  <div class="motive-num">03</div>
+  <div class="motive-content">
+    <span class="qm au d1">"</span>
+    <p class="quote au d2">Success is the<br>sum of small<br>efforts, <em>repeated</em><br>day in, <em>day out.</em></p>
+    <p class="attrib au d3">One Rep At a Time</p>
+  </div>
+</div>
+
+<!-- ─── 13. BOOK NOW ─── -->
+<div class="slide" id="s-book">
+  <div class="book-photo"></div>
+  <div class="content">
+    <span class="book-label au d1">Ready to Start?</span>
+    <h2 class="au d2">Book Your<br>Session</h2>
+    <p class="book-url au d3">coach-haus.com</p>
+    <div class="qr-wrap au d4">
+      <div id="book-qr"></div>
+      <span class="qr-label">Scan to Book</span>
+    </div>
+    <!-- Phone number: update when known -->
+    <p class="book-contact au d5"><!-- (613) 555-0000 --></p>
+    <p class="book-email au d5">info@coach-haus.com</p>
+  </div>
+</div>
+
+<!-- ─── 14. HOURS ─── -->
+<div class="slide" id="s-hours">
+  <div class="hrs-left">
+    <span class="eyebrow au d1">ClaraMount Club &middot; Picton, Ontario</span>
+    <h2 class="au d2">Gym<br>Hours</h2>
+    <div class="hrs-row au d3">
+      <span class="hrs-day">Open Daily</span>
+      <span class="hrs-time">6:00 AM &ndash; 9:00 PM</span>
+    </div>
+  </div>
+  <div class="hrs-right">
+    <div class="contact-block au d2">
+      <span class="cb-label">Location</span>
+      <span class="cb-value">40 Clara Drive<br>Picton, Ontario</span>
+    </div>
+    <div class="contact-block au d3">
+      <span class="cb-label">Venue</span>
+      <span class="cb-value">The ClaraMount Club</span>
+    </div>
+    <div class="contact-block au d4">
+      <span class="cb-label">Phone</span>
+      <!-- Update when number is confirmed -->
+      <span class="cb-value" id="contact-phone">coach-haus.com</span>
+    </div>
+    <div class="contact-block au d5">
+      <span class="cb-label">Email</span>
+      <span class="cb-value">info@coach-haus.com</span>
+    </div>
+    <div class="contact-block au" style="-webkit-animation-delay:.6s;animation-delay:.6s;margin-top:16px">
+      <img src="Photos/coach-haus-logo.png" alt="Coach Haus"
+        style="height:26px;-webkit-filter:brightness(0) invert(1);filter:brightness(0) invert(1);opacity:.35;"
+        onerror="this.style.display='none'">
+    </div>
+  </div>
+</div>
+
+<!-- night-mode cover (shown outside 06:00–23:00) -->
+<div id="night-cover">
+  <div class="night-logo">COACH HAUS</div>
+  <div class="night-clock" id="night-clock-el">--:-- --</div>
+  <div class="night-msg">Opens at 6:00 AM</div>
+</div>
+
+<!-- overlays -->
+<div id="vignette"></div>
+<div id="scanlines"></div>
+<div id="progress"></div>
+<div id="dots"></div>
+
+<script>
+/* ════════════════════════════════════════
+   SCHEDULE DATA  (ES5 — no const/let/arrows/template literals)
+   Shelbi removed. Replace MOCK_SCHEDULE with live API when ready.
+════════════════════════════════════════ */
+var INSTRUCTORS = {
+  adam:    'Adam Reynolds',
+  danielle:'Danielle Reynolds',
+  bella:   'Bella Sims',
+  megan:   'Megan Philip',
+  kaylyn:  'Kaylyn Gelata',
+  melody:  'Melody Addison'
+};
+
+var MOCK_SCHEDULE = {
+  thisWeek: [
+    { day:0, time:'8:30 AM',  name:'Strength — Upper Body',         instructor:'', type:'group' },
+    { day:0, time:'11:15 AM', name:'Aqua Fit',                      instructor:'', type:'group' },
+    { day:0, time:'6:00 PM',  name:'Strength — Upper Body',         instructor:'', type:'group' },
+    { day:1, time:'8:30 AM',  name:'Strength — Arms, Abs & Glutes', instructor:'', type:'group' },
+    { day:2, time:'7:00 AM',  name:'Strength — Lower Body',         instructor:'', type:'group' },
+    { day:2, time:'8:30 AM',  name:'Royal Hotel Bootcamp',          instructor:'', type:'group' },
+    { day:2, time:'6:00 PM',  name:'Strength — Lower Body',         instructor:'', type:'group' },
+    { day:3, time:'12:15 PM', name:'Slow Flow Yoga',                instructor:'', type:'yoga'  },
+    { day:3, time:'6:00 PM',  name:'Dance Class',                   instructor:'', type:'group' },
+    { day:4, time:'7:00 AM',  name:'Strength — Full Body',          instructor:'', type:'group' },
+    { day:4, time:'8:30 AM',  name:'Strength — Full Body',          instructor:'', type:'group' },
+    { day:5, time:'8:30 AM',  name:'Strength Foundations',          instructor:'', type:'group' }
+  ],
+  nextWeek: [
+    { day:0, time:'8:30 AM',  name:'Strength — Upper Body',         instructor:'', type:'group' },
+    { day:0, time:'11:15 AM', name:'Aqua Fit',                      instructor:'', type:'group' },
+    { day:0, time:'6:00 PM',  name:'Strength — Upper Body',         instructor:'', type:'group' },
+    { day:1, time:'8:30 AM',  name:'Strength — Arms, Abs & Glutes', instructor:'', type:'group' },
+    { day:2, time:'7:00 AM',  name:'Strength — Lower Body',         instructor:'', type:'group' },
+    { day:2, time:'8:30 AM',  name:'Royal Hotel Bootcamp',          instructor:'', type:'group' },
+    { day:2, time:'6:00 PM',  name:'Strength — Lower Body',         instructor:'', type:'group' },
+    { day:3, time:'12:15 PM', name:'Slow Flow Yoga',                instructor:'', type:'yoga'  },
+    { day:3, time:'6:00 PM',  name:'Dance Class',                   instructor:'', type:'group' },
+    { day:4, time:'7:00 AM',  name:'Strength — Full Body',          instructor:'', type:'group' },
+    { day:4, time:'8:30 AM',  name:'Strength — Full Body',          instructor:'', type:'group' },
+    { day:5, time:'8:30 AM',  name:'Strength Foundations',          instructor:'', type:'group' }
+  ]
+};
+
+var DAY_NAMES   = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+var DAY_ABBREVS = ['Mon','Tue','Wed','Thu','Fri','Sat'];
+var MONTHS      = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+function getWeekDates(offset) {
+  var now  = new Date();
+  var day  = now.getDay();
+  var diffToMon = (day === 0 ? -6 : 1 - day) + (offset * 7);
+  var mon  = new Date(now);
+  mon.setDate(now.getDate() + diffToMon);
+  var sat  = new Date(mon);
+  sat.setDate(mon.getDate() + 5);
+  var dates = [];
+  for (var i = 0; i < 6; i++) {
+    var d = new Date(mon);
+    d.setDate(mon.getDate() + i);
+    dates.push(d);
+  }
+  var fmtMon = MONTHS[mon.getMonth()] + ' ' + mon.getDate();
+  var fmtSat = MONTHS[sat.getMonth()] + ' ' + sat.getDate();
+  return {
+    mon: mon, sat: sat,
+    label: fmtMon + ' – ' + fmtSat + ', ' + mon.getFullYear(),
+    dates: dates
+  };
+}
+
+function todayDayIndex() {
+  var d = new Date().getDay();
+  return d === 0 ? -1 : d - 1;
+}
+
+function buildGrid(gridEl, classes, weekDates, isThisWeek) {
+  var todayIdx = isThisWeek ? todayDayIndex() : -1;
+  gridEl.innerHTML = '';
+  for (var d = 0; d < 6; d++) {
+    var col = document.createElement('div');
+    col.className = 'sched-col';
+
+    var hdr = document.createElement('div');
+    var isToday = (d === todayIdx);
+    hdr.className = 'sched-day-header' + (isToday ? ' today' : '');
+    var dateObj = weekDates.dates[d];
+    var dateStr = MONTHS[dateObj.getMonth()] + ' ' + dateObj.getDate();
+    hdr.innerHTML = '<span class="sched-day-name">' + DAY_ABBREVS[d] + '</span>' +
+                    '<span class="sched-day-date">' + dateStr + '</span>';
+    col.appendChild(hdr);
+
+    var dayClasses = [];
+    for (var j = 0; j < classes.length; j++) {
+      if (classes[j].day === d) dayClasses.push(classes[j]);
+    }
+
+    if (dayClasses.length === 0) {
+      var emp = document.createElement('div');
+      emp.className = 'sched-empty';
+      emp.textContent = 'No Classes';
+      col.appendChild(emp);
+    } else {
+      var list = document.createElement('div');
+      list.className = 'sched-classes';
+      for (var k = 0; k < dayClasses.length; k++) {
+        var c = dayClasses[k];
+        var card = document.createElement('div');
+        card.className = 'class-card type-' + c.type;
+        card.innerHTML = '<span class="class-time">'       + c.time       + '</span>' +
+                         '<span class="class-name">'       + c.name       + '</span>' +
+                         '<span class="class-instructor">' + c.instructor + '</span>';
+        list.appendChild(card);
+      }
+      col.appendChild(list);
+    }
+    gridEl.appendChild(col);
+  }
+}
+
+function initSchedule() {
+  var thisWeek = getWeekDates(0);
+  var nextWeek = getWeekDates(1);
+  document.getElementById('this-week-range').textContent = thisWeek.label;
+  document.getElementById('next-week-range').textContent = nextWeek.label;
+  buildGrid(document.getElementById('this-week-grid'), MOCK_SCHEDULE.thisWeek, thisWeek, true);
+  buildGrid(document.getElementById('next-week-grid'), MOCK_SCHEDULE.nextWeek, nextWeek, false);
+}
+initSchedule();
+setInterval(initSchedule, 5 * 60 * 1000);
+
+
+/* ─ Clock ─ */
+var clockEl  = document.getElementById('hud-clock');
+var dateEl   = document.getElementById('hud-date');
+var DAYS_LONG = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+
+function tick() {
+  var now = new Date();
+  var h   = now.getHours();
+  var m   = now.getMinutes();
+  var ampm = h >= 12 ? 'PM' : 'AM';
+  var h12  = (h % 12) || 12;
+  var ms   = (m < 10 ? '0' : '') + m;
+  clockEl.textContent = h12 + ':' + ms + ' ' + ampm;
+  dateEl.textContent  = DAYS_LONG[now.getDay()] + ' ' + now.getDate() + ' ' +
+                        MONTHS[now.getMonth()].toUpperCase() + ' — PRINCE EDWARD COUNTY';
+}
+/* ─ Night mode ─
+   Gym hours 06:00–23:00. Outside those hours the display shows a minimal
+   black screen so the screen can stay technically "on" (needed for scheduled
+   wake) while showing nothing distracting. Combined with stay_on_while_plugged_in
+   and an optional scheduled screen-off via ADB or Fully Kiosk Browser. */
+var nightCover    = document.getElementById('night-cover');
+var nightClockEl  = document.getElementById('night-clock-el');
+var GYM_OPEN_H    = 6;   /* 06:00 */
+var GYM_CLOSE_H   = 21;  /* 21:00 */
+
+function updateNightMode() {
+  var h = new Date().getHours();
+  var isNight = (h < GYM_OPEN_H || h >= GYM_CLOSE_H);
+  if (isNight) {
+    nightCover.className = 'visible';
+    /* show a dim clock so time is visible if needed */
+    var now2 = new Date();
+    var h2   = now2.getHours();
+    var m2   = now2.getMinutes();
+    var ap   = h2 >= 12 ? 'PM' : 'AM';
+    var h12  = (h2 % 12) || 12;
+    nightClockEl.textContent = h12 + ':' + (m2 < 10 ? '0' : '') + m2 + ' ' + ap;
+  } else {
+    nightCover.className = '';
+  }
+}
+updateNightMode();
+setInterval(updateNightMode, 60000);
+
+tick();
+setInterval(tick, 1000);
+
+
+/* ─ Slide engine ─ */
+var SLIDE_MS   = 10000;
+var slideEls   = [].slice.call(document.querySelectorAll('.slide'));
+var cur        = 0;
+var t0         = null;
+var raf        = null;
+
+var progressEl = document.getElementById('progress');
+var dotsEl     = document.getElementById('dots');
+
+for (var si = 0; si < slideEls.length; si++) {
+  var dot = document.createElement('div');
+  dot.className = 'dot' + (si === 0 ? ' active' : '');
+  (function(idx) {
+    dot.addEventListener('click', function() { go(idx); });
+  })(si);
+  dotsEl.appendChild(dot);
+}
+var dotEls = [].slice.call(dotsEl.querySelectorAll('.dot'));
+
+function go(idx) {
+  slideEls[cur].className = slideEls[cur].className.replace(' active', '');
+  dotEls[cur].className   = dotEls[cur].className.replace(' active', '');
+  cur = ((idx % slideEls.length) + slideEls.length) % slideEls.length;
+  slideEls[cur].className += ' active';
+  dotEls[cur].className   += ' active';
+  t0 = performance.now();
+}
+
+function frame(now) {
+  if (!t0) t0 = now;
+  var pct = Math.min((now - t0) / SLIDE_MS * 100, 100);
+  progressEl.style.width = pct + '%';
+  if (now - t0 >= SLIDE_MS) go(cur + 1);
+  raf = requestAnimationFrame(frame);
+}
+t0 = performance.now();
+raf = requestAnimationFrame(frame);
+
+document.addEventListener('keydown', function(e) {
+  if (e.keyCode === 39 || e.keyCode === 32) go(cur + 1);
+  if (e.keyCode === 37) go(cur - 1);
+});
+
+/* ─ MindBody QR code ─ */
+new QRCode(document.getElementById('book-qr'), {
+  text: 'https://clients.mindbodyonline.com/classic/mainclass?studioid=5751040&stype=-7&view=week&loc=1',
+  width: 180,
+  height: 180,
+  colorDark: '#C9A84C',
+  colorLight: '#080808',
+  correctLevel: QRCode.CorrectLevel.L
+});
+
+var touchX = 0;
+document.addEventListener('touchstart', function(e) { touchX = e.touches[0].clientX; });
+document.addEventListener('touchend',   function(e) {
+  var dx = e.changedTouches[0].clientX - touchX;
+  if (Math.abs(dx) > 50) go(dx < 0 ? cur + 1 : cur - 1);
+});
+</script>
+</body>
+</html>
