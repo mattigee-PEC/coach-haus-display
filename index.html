@@ -49,7 +49,7 @@
    No CSS custom properties, no Grid, no clamp(), no inset shorthand, no flex gap
 ═══════════════════════════ */
 *, *:before, *:after { margin:0; padding:0; -webkit-box-sizing:border-box; box-sizing:border-box; }
-html, body { width:100%; height:100%; overflow:hidden; background:#080808; color:#F4F1EB; cursor:none; }
+html, body { width:100%; height:100%; overflow:hidden; background:#141414; color:#F4F1EB; cursor:none; }
 body { font-family:'Barlow Condensed', sans-serif; }
 
 /* ═══════════════════════════
@@ -61,8 +61,8 @@ body { font-family:'Barlow Condensed', sans-serif; }
   -webkit-align-items: flex-start; align-items: flex-start;
   -webkit-justify-content: space-between; justify-content: space-between;
   padding: 20px 44px 0;
-  background: -webkit-linear-gradient(bottom, transparent, rgba(0,0,0,.75));
-  background: linear-gradient(to bottom, rgba(0,0,0,.75) 0%, transparent 100%);
+  background: -webkit-linear-gradient(bottom, transparent, rgba(0,0,0,.85));
+  background: linear-gradient(to bottom, rgba(0,0,0,.85) 0%, transparent 100%);
   pointer-events: none;
 }
 #hud-logo img {
@@ -93,7 +93,7 @@ body { font-family:'Barlow Condensed', sans-serif; }
   font-weight: 300;
   letter-spacing: .22em;
   text-transform: uppercase;
-  color: #7A7A7A;
+  color: #AAAAAA;
   margin-top: 3px;
 }
 
@@ -265,7 +265,7 @@ body { font-family:'Barlow Condensed', sans-serif; }
 }
 #s-services .right {
   position:absolute; top:0; right:0; bottom:0; width:58%;
-  background:#111111;
+  background:#1a1a1a;
   display:-webkit-flex; display:flex;
   -webkit-flex-direction:column; flex-direction:column;
   -webkit-justify-content:center; justify-content:center;
@@ -305,7 +305,7 @@ body { font-family:'Barlow Condensed', sans-serif; }
 .svc-desc {
   font-family:'Barlow', sans-serif;
   font-size:.82rem; font-weight:300;
-  color:rgba(255,255,255,.45); line-height:1.55;
+  color:rgba(255,255,255,.75); line-height:1.55;
 }
 #s-services .insurance-badge {
   margin-top:28px; display:-webkit-inline-flex; display:inline-flex;
@@ -321,7 +321,7 @@ body { font-family:'Barlow Condensed', sans-serif; }
    SERVICE DETAIL SLIDES (3, 7, 9)
 ════════════════════════════════════════ */
 .slide-svc-detail {
-  background:#080808;
+  background:#141414;
   display:-webkit-flex; display:flex;
 }
 .slide-svc-detail .illus-panel {
@@ -373,7 +373,7 @@ body { font-family:'Barlow Condensed', sans-serif; }
 .slide-svc-detail .desc {
   font-family:'Barlow', sans-serif; font-size:1rem;
   font-weight:300; line-height:1.7;
-  color:rgba(255,255,255,.55); max-width:440px; margin-bottom:28px;
+  color:rgba(255,255,255,.82); max-width:440px; margin-bottom:28px;
 }
 .slide-svc-detail .tag {
   display:-webkit-inline-flex; display:inline-flex;
@@ -452,7 +452,7 @@ body { font-family:'Barlow Condensed', sans-serif; }
    SCHEDULE SLIDES
 ════════════════════════════════════════ */
 .slide-schedule {
-  background:#080808;
+  background:#141414;
   display:-webkit-flex; display:flex;
   -webkit-flex-direction:column; flex-direction:column;
   padding:0;
@@ -522,11 +522,11 @@ body { font-family:'Barlow Condensed', sans-serif; }
 }
 .sched-day-name {
   font-family:'Bebas Neue', sans-serif;
-  font-size:1.1rem; letter-spacing:.08em; color:#BBBBBB;
+  font-size:1.1rem; letter-spacing:.08em; color:#E0E0E0;
   display:block;
 }
 .sched-day-date {
-  font-size:.65rem; letter-spacing:.15em; color:#7A7A7A;
+  font-size:.65rem; letter-spacing:.15em; color:#A0A0A0;
   font-weight:300;
 }
 .sched-day-header.today { border-bottom:2px solid #C9A84C; }
@@ -571,7 +571,7 @@ body { font-family:'Barlow Condensed', sans-serif; }
 }
 .class-instructor {
   font-size:.65rem; font-weight:300; letter-spacing:.08em;
-  color:#7A7A7A; display:block;
+  color:#A0A0A0; display:block;
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
 }
 .sched-empty {
@@ -714,12 +714,14 @@ body { font-family:'Barlow Condensed', sans-serif; }
   -webkit-flex-direction:column; flex-direction:column;
   -webkit-align-items:center; align-items:center;
   margin-bottom:20px;
+  background:#FFFFFF;
+  padding:12px;
 }
 #s-book .qr-wrap canvas,
 #s-book .qr-wrap img { display:block; }
 #s-book .qr-label {
   font-size:.65rem; letter-spacing:.3em; text-transform:uppercase;
-  color:rgba(255,255,255,.3); margin-top:12px;
+  color:rgba(255,255,255,.65); margin-top:12px;
   font-family:'Barlow Condensed', sans-serif;
 }
 
@@ -728,7 +730,7 @@ body { font-family:'Barlow Condensed', sans-serif; }
    HOURS SLIDE
 ════════════════════════════════════════ */
 #s-hours {
-  background:#181818;
+  background:#1e1e1e;
   display:-webkit-flex; display:flex;
 }
 #s-hours .hrs-left {
@@ -756,7 +758,7 @@ body { font-family:'Barlow Condensed', sans-serif; }
 .hrs-row:last-child { border-bottom:none; }
 .hrs-day {
   font-size:.9rem; letter-spacing:.2em; text-transform:uppercase;
-  color:rgba(255,255,255,.45); font-weight:300; min-width:160px;
+  color:rgba(255,255,255,.75); font-weight:300; min-width:160px;
   margin-right:32px;
 }
 .hrs-time {
@@ -786,7 +788,7 @@ body { font-family:'Barlow Condensed', sans-serif; }
 }
 .cb-value {
   font-size:1rem; letter-spacing:.05em;
-  color:rgba(255,255,255,.65); font-weight:300; line-height:1.5;
+  color:rgba(255,255,255,.85); font-weight:300; line-height:1.5;
 }
 #s-hours .hrs-logo img {
   height:26px;
@@ -799,7 +801,7 @@ body { font-family:'Barlow Condensed', sans-serif; }
    TEAM SLIDE — flexbox replaces CSS Grid
 ════════════════════════════════════════ */
 #s-team {
-  background:#111111;
+  background:#1a1a1a;
   display:-webkit-flex; display:flex;
   -webkit-flex-direction:column; flex-direction:column;
 }
@@ -861,7 +863,7 @@ body { font-family:'Barlow Condensed', sans-serif; }
 }
 .tm-role {
   font-size:.62rem; letter-spacing:.1em; font-weight:300;
-  color:#7A7A7A; line-height:1.4;
+  color:#A0A0A0; line-height:1.4;
   text-transform:uppercase;
 }
 
@@ -1457,11 +1459,11 @@ document.addEventListener('keydown', function(e) {
 /* ─ MindBody QR code ─ */
 new QRCode(document.getElementById('book-qr'), {
   text: 'https://clients.mindbodyonline.com/classic/mainclass?studioid=5751040&stype=-7&view=week&loc=1',
-  width: 180,
-  height: 180,
-  colorDark: '#C9A84C',
-  colorLight: '#080808',
-  correctLevel: QRCode.CorrectLevel.L
+  width: 200,
+  height: 200,
+  colorDark: '#080808',
+  colorLight: '#FFFFFF',
+  correctLevel: QRCode.CorrectLevel.M
 });
 
 var touchX = 0;
