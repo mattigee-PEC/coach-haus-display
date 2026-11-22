@@ -49,7 +49,11 @@
    No CSS custom properties, no Grid, no clamp(), no inset shorthand, no flex gap
 ═══════════════════════════ */
 *, *:before, *:after { margin:0; padding:0; -webkit-box-sizing:border-box; box-sizing:border-box; }
-html, body { width:100%; height:100%; overflow:hidden; background:#141414; color:#F4F1EB; cursor:none; }
+html, body { width:100%; height:100%; overflow:hidden; background:#141414; color:#F4F1EB; cursor:none;
+  -webkit-user-select:none; user-select:none; -webkit-touch-callout:none;
+  -webkit-tap-highlight-color:rgba(0,0,0,0); -ms-touch-action:none; touch-action:none; }
+/* Touch lockdown: invisible layer above everything that swallows all touches */
+#touch-lock { position:fixed; top:0; right:0; bottom:0; left:0; z-index:2147483647; background:transparent; }
 body { font-family:'Barlow Condensed', sans-serif; }
 
 /* ═══════════════════════════
@@ -1230,6 +1234,7 @@ body { font-family:'Barlow Condensed', sans-serif; }
 <div id="progress"></div>
 <div id="dots"></div>
 
+<div id="touch-lock"></div>
 <script>
 /* ════════════════════════════════════════
    SCHEDULE DATA  (ES5 — no const/let/arrows/template literals)
@@ -1425,9 +1430,6 @@ var dotsEl     = document.getElementById('dots');
 for (var si = 0; si < slideEls.length; si++) {
   var dot = document.createElement('div');
   dot.className = 'dot' + (si === 0 ? ' active' : '');
-  (function(idx) {
-    dot.addEventListener('click', function() { go(idx); });
-  })(si);
   dotsEl.appendChild(dot);
 }
 var dotEls = [].slice.call(dotsEl.querySelectorAll('.dot'));
@@ -1466,12 +1468,25 @@ new QRCode(document.getElementById('book-qr'), {
   correctLevel: QRCode.CorrectLevel.M
 });
 
-var touchX = 0;
-document.addEventListener('touchstart', function(e) { touchX = e.touches[0].clientX; });
-document.addEventListener('touchend',   function(e) {
-  var dx = e.changedTouches[0].clientX - touchX;
-  if (Math.abs(dx) > 50) go(dx < 0 ? cur + 1 : cur - 1);
-});
+/* ─ Touch lockdown ─
+   Treadmill users must not be able to interact with the display (or reach
+   Fully Kiosk's exit gestures via the page). Swallow every touch/mouse/
+   gesture event in the capture phase. Slides advance on the timer only. */
+(function() {
+  var evs = ['touchstart','touchmove','touchend','touchcancel',
+             'mousedown','mouseup','mousemove','click','dblclick',
+             'contextmenu','dragstart','selectstart','gesturestart',
+             'gesturechange','gestureend','wheel'];
+  function block(e) {
+    if (e.preventDefault) e.preventDefault();
+    if (e.stopPropagation) e.stopPropagation();
+    return false;
+  }
+  for (var i = 0; i < evs.length; i++) {
+    document.addEventListener(evs[i], block, true);
+    window.addEventListener(evs[i], block, true);
+  }
+})();
 </script>
 </body>
 </html>
